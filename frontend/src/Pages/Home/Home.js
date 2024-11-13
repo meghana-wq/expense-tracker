@@ -44,9 +44,17 @@ const Home = () => {
     setStartDate(date);
   };
 
+
   const handleEndChange = (date) => {
-    setEndDate(date);
+    const adjustedDate = new Date(date);
+    adjustedDate.setHours(23, 59, 59, 999); // Set to the end of the day
+    setEndDate(adjustedDate);
   };
+
+
+  // const handleEndChange = (date) => {
+  //   setEndDate(date);
+  // };
 
   const handleClose = () => setShow(false);
   const handleShow = () => setShow(true);
@@ -63,7 +71,7 @@ const Home = () => {
         setcUser(user);
         setRefresh(true);
       } else {
-        navigate("/login");
+        navigate("/login"); 
       }
     };
 
@@ -138,15 +146,15 @@ const Home = () => {
   };
 
 
+ 
+
+  const [notificationSent, setNotificationSent] = useState(false);
+  const [categoryWithHighestExpense, setCategoryWithHighestExpense] = useState("");
   
-
-
   useEffect(() => {
-
     const fetchAllTransactions = async () => {
       try {
         setLoading(true);
-        console.log(cUser._id, frequency, startDate, endDate, type);
         const { data } = await axios.post(getTransactions, {
           userId: cUser._id,
           frequency: frequency,
@@ -154,19 +162,55 @@ const Home = () => {
           endDate: endDate,
           type: type,
         });
-        console.log(data);
   
         setTransactions(data.transactions);
   
+        // Calculate total income and total expense
+        const totalIncome = data.transactions
+          .filter(transaction => transaction.transactionType === "credit")
+          .reduce((acc, transaction) => acc + transaction.amount, 0);
+  
+        const totalExpense = data.transactions
+          .filter(transaction => transaction.transactionType === "expense")
+          .reduce((acc, transaction) => acc + transaction.amount, 0);
+  
+        // Categorize expenses by type
+        const expensesByCategory = data.transactions
+          .filter(transaction => transaction.transactionType === "expense")
+          .reduce((acc, transaction) => {
+            if (!acc[transaction.category]) {
+              acc[transaction.category] = 0;
+            }
+            acc[transaction.category] += transaction.amount;
+            return acc;
+          }, {});
+  
+        // Find the category with the highest expense
+        const highestExpenseCategory = Object.keys(expensesByCategory).reduce(
+          (a, b) => (expensesByCategory[a] > expensesByCategory[b] ? a : b),
+          ""
+        );
+  
+        setCategoryWithHighestExpense(highestExpenseCategory);
+  
+        // Check if expenses exceed income and notify which category is highest
+        if (totalExpense > totalIncome && !notificationSent) {
+          alert(
+            `Expense Alert! Your expenses exceed your income. The highest expense is in the category: ${highestExpenseCategory}`
+          );
+          setNotificationSent(true); // Prevent duplicate notifications
+        }
+  
         setLoading(false);
       } catch (err) {
-        // toast.error("Error please Try again...", toastOptions);
         setLoading(false);
       }
     };
-
+  
     fetchAllTransactions();
   }, [refresh, frequency, endDate, type, startDate]);
+  
+
 
   const handleTableClick = (e) => {
     setView("table");
@@ -216,8 +260,8 @@ const Home = () => {
                     onChange={handleSetType}
                   >
                     <option value="all">All</option>
-                    <option value="expense">Expense</option>
-                    <option value="credit">Earned</option>
+                    <option value="expense">Debit</option>
+                    <option value="credit">Credit</option>
                   </Form.Select>
                 </Form.Group>
               </div>
@@ -226,16 +270,14 @@ const Home = () => {
                 <FormatListBulletedIcon
                   sx={{ cursor: "pointer" }}
                   onClick={handleTableClick}
-                  className={`${
-                    view === "table" ? "iconActive" : "iconDeactive"
-                  }`}
+                  className={`${view === "table" ? "iconActive" : "iconDeactive"
+                    }`}
                 />
                 <BarChartIcon
                   sx={{ cursor: "pointer" }}
                   onClick={handleChartClick}
-                  className={`${
-                    view === "chart" ? "iconActive" : "iconDeactive"
-                  }`}
+                  className={`${view === "chart" ? "iconActive" : "iconDeactive"
+                    }`}
                 />
               </div>
 
